@@ -1,0 +1,21 @@
+# Render.com Blueprint
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: finance-app-backend
+    env: docker
+    region: singapore
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DB_URL
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PORT
+        value: 8080

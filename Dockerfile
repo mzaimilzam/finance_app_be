@@ -1,5 +1,5 @@
 # Build stage
-FROM gradle:8.5-jdk17 AS build
+FROM gradle:8.5-jdk21 AS build
 WORKDIR /app
 
 # Copy gradle files first for dependency caching
@@ -13,21 +13,21 @@ RUN gradle dependencies --no-daemon || true
 COPY src ./src
 
 # Build the fat jar
-RUN gradle buildFatJar --no-daemon
+RUN gradle shadowJar --no-daemon
 
 # Runtime stage
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 # Copy the built jar from build stage
-COPY --from=build /app/build/libs/finance-app.jar ./app.jar
+COPY --from=build /app/build/libs/*-all.jar ./app.jar
 
-# Expose port
+# Expose port (Render will use PORT env variable)
 EXPOSE 8080
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-8080}/health || exit 1
 
-# Run the application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Run the application with dynamic PORT support
+ENTRYPOINT ["sh", "-c", "java -jar app.jar"]

@@ -84,16 +84,31 @@ fun Application.configureStatusPages() {
             )
         }
 
-        // JSON serialization errors (missing fields, invalid format)
-        exception<JsonConvertException> { call, cause ->
-            val message = when {
-                cause.cause is kotlinx.serialization.MissingFieldException -> {
-                    val fieldMatch = Regex("Field '(\\w+)'").find(cause.cause?.message ?: "")
-                    val fieldName = fieldMatch?.groupValues?.get(1) ?: "unknown"
-                    "Missing required field: $fieldName"
+        // JSON serialization errors (missing fields)
+        exception<kotlinx.serialization.MissingFieldException> { call, cause ->
+            val fieldName = cause.missingFields.joinToString(", ")
+            call.respond(
+                HttpStatusCode.BadRequest,
+                ErrorResponse(
+                    error = "Bad Request",
+                    message = "Missing required field(s): $fieldName",
+                    status = 400
+                )
+            )
+        }
+
+        // Ktor BadRequestException (often wraps serialization errors)
+        exception<io.ktor.server.plugins.BadRequestException> { call, cause ->
+            val message = when (val inner = cause.cause) {
+                is kotlinx.serialization.MissingFieldException -> {
+                    "Missing required field(s): ${inner.missingFields.joinToString(", ")}"
                 }
-                else -> cause.message ?: "Invalid JSON format"
+                is kotlinx.serialization.SerializationException -> {
+                    "Invalid JSON format: ${inner.message}"
+                }
+                else -> cause.message ?: "Invalid request"
             }
+
             call.respond(
                 HttpStatusCode.BadRequest,
                 ErrorResponse(

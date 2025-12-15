@@ -20,7 +20,7 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 # Copy the built jar from build stage
-COPY --from=build /app/build/libs/*-all.jar ./app.jar
+COPY --from=build /app/build/libs/finance-app.jar ./app.jar
 
 # Expose port (Render will use PORT env variable)
 EXPOSE 8080

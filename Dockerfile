@@ -16,7 +16,7 @@ COPY src ./src
 RUN gradle shadowJar --no-daemon
 
 # Runtime stage
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jre
 WORKDIR /app
 
 # Copy the built jar from build stage

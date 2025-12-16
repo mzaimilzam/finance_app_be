@@ -45,5 +45,27 @@ fun Route.authRoutes() {
 
             call.respond(HttpStatusCode.OK, response)
         }
+
+        post("/refresh") {
+            val request = call.receive<com.financeapp.models.RefreshTokenRequest>()
+            
+            if (request.refreshToken.isBlank()) {
+                throw BadRequestException("Refresh token is required")
+            }
+
+            val response = authService.refreshToken(request.refreshToken)
+            call.respond(HttpStatusCode.OK, response)
+        }
+
+        post("/google") {
+            val request = call.receive<com.financeapp.models.GoogleLoginRequest>()
+            
+            if (request.idToken.isBlank()) {
+                throw BadRequestException("ID Token is required")
+            }
+
+            val response = authService.googleLogin(request.idToken)
+            call.respond(HttpStatusCode.OK, response)
+        }
     }
 }

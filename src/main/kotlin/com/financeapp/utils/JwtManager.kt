@@ -32,4 +32,30 @@ class JwtManager(config: ApplicationConfig) {
             .withExpiresAt(Date(System.currentTimeMillis() + expirationMs))
             .sign(algorithm)
     }
+
+    fun generateRefreshToken(userId: UUID): String {
+        // Refresh token valid for 30 days
+        val refreshExpirationMs = 30L * 24 * 60 * 60 * 1000
+        return JWT.create()
+            .withAudience(audience)
+            .withIssuer(issuer)
+            .withClaim("userId", userId.toString())
+            .withClaim("type", "refresh")
+            .withExpiresAt(Date(System.currentTimeMillis() + refreshExpirationMs))
+            .sign(algorithm)
+    }
+
+    fun verifyRefreshToken(token: String): UUID? {
+        return try {
+            val decodedJWT = verifier.verify(token)
+            val type = decodedJWT.getClaim("type").asString()
+            if (type == "refresh") {
+                UUID.fromString(decodedJWT.getClaim("userId").asString())
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
 }

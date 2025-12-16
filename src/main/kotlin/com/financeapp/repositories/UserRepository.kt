@@ -13,7 +13,7 @@ class UserRepository {
     
     private val dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
 
-    suspend fun findByEmail(email: String): Pair<User, String>? = dbQuery {
+    suspend fun findByEmail(email: String): Pair<User, String?>? = dbQuery {
         UsersTable.select { UsersTable.email eq email }
             .map { row -> rowToUserWithHash(row) }
             .singleOrNull()
@@ -25,7 +25,7 @@ class UserRepository {
             .singleOrNull()
     }
 
-    suspend fun create(email: String, passwordHash: String, fullName: String): User = dbQuery {
+    suspend fun create(email: String, passwordHash: String?, fullName: String): User = dbQuery {
         val insertStatement = UsersTable.insert {
             it[UsersTable.email] = email
             it[UsersTable.passwordHash] = passwordHash
@@ -50,7 +50,7 @@ class UserRepository {
         createdAt = row[UsersTable.createdAt].format(dateFormatter)
     )
 
-    private fun rowToUserWithHash(row: ResultRow): Pair<User, String> = Pair(
+    private fun rowToUserWithHash(row: ResultRow): Pair<User, String?> = Pair(
         rowToUser(row),
         row[UsersTable.passwordHash]
     )

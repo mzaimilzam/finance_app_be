@@ -10,11 +10,12 @@ import com.financeapp.utils.UnauthorizedException
 
 class AuthService(
     private val userRepository: UserRepository,
-    private val jwtManager: JwtManager
+    private val jwtManager: JwtManager,
+    private val googleVerifier: com.financeapp.utils.GoogleAuthVerifier
 ) {
 
     suspend fun register(email: String, password: String, fullName: String): AuthResponse {
-        // Validate input
+        // ... (validation code unchanged) ...
         validateEmail(email)
         validatePassword(password)
         validateName(fullName)
@@ -28,26 +29,70 @@ class AuthService(
         val hashedPassword = PasswordHasher.hash(password)
         val user = userRepository.create(email, hashedPassword, fullName)
 
-        // Generate JWT token
+        // Generate tokens
         val token = jwtManager.generateToken(user.id, user.email)
+        val refreshToken = jwtManager.generateRefreshToken(user.id)
 
-        return AuthResponse(token = token, user = user)
+        return AuthResponse(token = token, refreshToken = refreshToken, user = user)
     }
 
     suspend fun login(email: String, password: String): AuthResponse {
         // Find user by email
-        val (user, hashedPassword) = userRepository.findByEmail(email)
+        val result = userRepository.findByEmail(email)
             ?: throw UnauthorizedException("Invalid email or password")
+        
+        val user = result.first
+        val hashedPassword = result.second
+
+        // If user has no password (e.g. Google auth only), they can't login with password
+        if (hashedPassword == null) {
+             throw UnauthorizedException("Please sign in with Google")
+        }
 
         // Verify password
         if (!PasswordHasher.verify(password, hashedPassword)) {
             throw UnauthorizedException("Invalid email or password")
         }
 
-        // Generate JWT token
+        // Generate tokens
         val token = jwtManager.generateToken(user.id, user.email)
+        val refreshToken = jwtManager.generateRefreshToken(user.id)
 
-        return AuthResponse(token = token, user = user)
+        return AuthResponse(token = token, refreshToken = refreshToken, user = user)
+    }
+
+    suspend fun googleLogin(idToken: String): AuthResponse {
+        val googleUser = googleVerifier.verify(idToken)
+            ?: throw UnauthorizedException("Invalid Google ID Token")
+
+        // Check if user exists
+        val existing = userRepository.findByEmail(googleUser.email)
+        
+        val user = if (existing != null) {
+            existing.first
+        } else {
+            // Register new user with null password
+            userRepository.create(googleUser.email, null, googleUser.name)
+        }
+
+        // Generate tokens
+        val token = jwtManager.generateToken(user.id, user.email)
+        val refreshToken = jwtManager.generateRefreshToken(user.id)
+
+        return AuthResponse(token = token, refreshToken = refreshToken, user = user)
+    }
+
+    suspend fun refreshToken(token: String): AuthResponse {
+        val userId = jwtManager.verifyRefreshToken(token)
+            ?: throw UnauthorizedException("Invalid or expired refresh token")
+
+        val user = userRepository.findById(userId)
+            ?: throw UnauthorizedException("User not found")
+
+        val newAccessToken = jwtManager.generateToken(user.id, user.email)
+        val newRefreshToken = jwtManager.generateRefreshToken(user.id)
+
+        return AuthResponse(token = newAccessToken, refreshToken = newRefreshToken, user = user)
     }
 
     private fun validateEmail(email: String) {

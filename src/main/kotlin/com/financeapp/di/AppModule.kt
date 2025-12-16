@@ -19,8 +19,11 @@ fun appModule(application: Application) = module {
     single { CategoryRepository() }
     single { TransactionRepository() }
 
+    // Utils
+    single { com.financeapp.utils.GoogleAuthVerifier(application.environment.config) }
+
     // Services
-    single { AuthService(get(), get()) }
+    single { AuthService(get(), get(), get()) }
     single { CategoryService(get()) }
     single { TransactionService(get()) }
 }
